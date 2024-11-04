@@ -1,0 +1,124 @@
+﻿Texture2D<float4> src;
+RWTexture2D<float4> target;
+float4 _TextureDimensions;
+float _Kernel[81];
+int _KernelSize; 
+int _KernelWidth;
+int _KernelExtend;
+int _KernelOffset;
+int _SummationMethod;
+
+#pragma kernel Convolve
+#pragma kernel Dilate
+#pragma kernel Erode
+
+uint2 get_offset_coords(uint2 center, int i, int j, int multiplier)
+{
+    return uint2(
+        center.x + (i - _KernelExtend) * multiplier,
+        center.y + (j - _KernelExtend) * multiplier
+    );
+}
+
+bool InRange(uint2 xy)
+{
+    if (xy.x >= _TextureDimensions.x || xy.y >= _TextureDimensions.y
+        || xy.x >= _TextureDimensions.z && xy.y >= _TextureDimensions.w)
+        return false;
+    return true;
+}
+
+[numthreads(8,8,1)]
+void Convolve(uint3 id: SV_DispatchThreadID)
+{
+    uint2 xy = id.xy;
+    //if(!InRange(xy)) return;
+    //Einstein summation convention
+    if (_SummationMethod == 1)
+    {
+        float4 sum = 0;
+        for (int i = 0; i < _KernelSize; i++)
+        {
+            for (int j = 0; j < _KernelSize; j++)
+            {
+                float kernel_val = _Kernel[i] * _Kernel[j];
+                sum += kernel_val * src[get_offset_coords(xy, i, j, _KernelOffset)];
+            }
+        }
+        target[xy] = sum;
+    }
+    else
+    {
+        float4 sum = 0;
+        for (int i = 0; i < _KernelWidth; i++)
+        {
+            for (int j = 0; j < _KernelWidth; j++)
+            {
+                float kernel_val = _Kernel[i * _KernelWidth + j];
+                sum += kernel_val * src[get_offset_coords(xy, i, j, _KernelOffset)];
+            }
+        }
+        target[xy] = sum;
+    }
+}
+
+[numthreads(8,8,1)]
+void Dilate(uint3 id: SV_DispatchThreadID)
+{
+    uint2 xy = id.xy;
+    if(!InRange(xy)) return;
+    float4 result = float4(0, 0, 0, 0);
+    float4 cnt = float4(0, 0, 0, 0);
+    for (int i = 0; i < _KernelWidth; i++)
+    {
+        for (int j = 0; j < _KernelWidth; j++)
+        {
+            float kernel_val = _Kernel[i * _KernelWidth + j];
+            if (kernel_val > 0)
+            {
+                float4 c = src[get_offset_coords(xy, i, j, _KernelOffset)];
+                for (int k = 0; k < 4; k++)
+                {
+                    if (c[k] > 0)
+                    {
+                        result[k] += c[k];
+                        cnt[k]+=1;
+                    }
+                }
+            }
+        }
+    }
+
+    for (int k = 0; k < 4; k++)
+    {
+        if (cnt[k] > 0)
+        {
+            result[k] /= cnt[k];
+        }
+    }
+    target[xy] = result;
+}
+
+[numthreads(8,8,1)]
+void Erode(uint3 id: SV_DispatchThreadID)
+{
+    uint2 xy = id.xy;
+    if(!InRange(xy)) return;
+    float4 center_color = src[xy];
+    for (int i = 0; i < _KernelWidth; i++)
+    {
+        for (int j = 0; j < _KernelWidth; j++)
+        {
+            float kernel_val = _Kernel[i * _KernelWidth + j];
+            if (kernel_val > 0)
+            {
+                float4 c = src[get_offset_coords(xy, i, j, _KernelOffset)];
+                for (int k = 0; k < 4; k++)
+                {
+                    center_color[k] *= c[k] > 0 ? 1 : 0;
+                }
+            }
+        }
+    }
+    target[xy] = center_color;
+}

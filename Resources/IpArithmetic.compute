@@ -1,0 +1,148 @@
+﻿RWTexture2D<float4> background;
+Texture2D foreground;
+float4 _TextureDimensions;
+float4 _Offset;
+float4 _ForegroundLinearTransform;
+int _ChannelMask;
+int _SkipConditions;
+
+#pragma kernel Overwrite
+#pragma kernel Add
+#pragma kernel Subtract
+#pragma kernel Multiply
+#pragma kernel Divide
+
+bool InRange(uint2 xy)
+{
+    if (xy.x >= _TextureDimensions.x || xy.y >= _TextureDimensions.y
+        || xy.x >= _TextureDimensions.z && xy.y >= _TextureDimensions.w)
+        return false;
+    return true;
+}
+
+bool ShouldSkip(uint2 xy)
+{
+    if(_SkipConditions == 0) return false;
+    float4 c = foreground[xy];
+    //black pixels
+    if((_SkipConditions >> 0 & 1) == 1)
+    {
+        if(c.r < 0.000001 && c.g < 0.000001 && c.b < 0.00001) return true;
+    }
+    //transparent pixels
+    if((_SkipConditions >> 1 & 1) == 1)
+    {
+        if(c.a < 0.00001) return true;
+    }
+    //white pixels
+    if((_SkipConditions >> 1 & 1) == 1)
+    {
+        if(c.r > 0.99999 && c.g > 0.99999 && c.b > 0.99999) return true;
+    }
+    return false;
+}
+
+void ApplyOffset(inout uint2 xy)
+{
+    xy.x += (uint)_Offset.x;
+    xy.y += (uint)_Offset.y;
+}
+
+float4 GetMaskedColor(float4 c)
+{
+    if((_ChannelMask >> 3 & 1) != 1)
+    {
+        c.r = 0;
+    }
+    if((_ChannelMask >> 2 & 1) != 1)
+    {
+        c.g = 0;
+    }
+    if((_ChannelMask >> 1 & 1) != 1)
+    {
+        c.b = 0;
+    }
+    if((_ChannelMask >> 0 & 1) != 1)
+    {
+        c.a = 0;
+    }
+    return c;
+}
+
+float4 LinearTransformForegroundColor(float4 c)
+{
+    if(_ForegroundLinearTransform.x == 0 && _ForegroundLinearTransform.y == 0) return c;
+    return _ForegroundLinearTransform.x * c + _ForegroundLinearTransform.y;
+}
+
+[numthreads(8,8,1)]
+void Overwrite(uint3 id: SV_DispatchThreadID)
+{
+    uint2 xy = id.xy;
+    ApplyOffset(xy);
+    if (!InRange(xy) || ShouldSkip(xy))return;
+    
+    float4 c = background[xy];
+    float4 o = LinearTransformForegroundColor(foreground[xy]);
+    
+    if((_ChannelMask >> 3 & 1) == 1)
+    {
+        c.r = o.r;
+    }
+    if((_ChannelMask >> 2 & 1) == 1)
+    {
+        c.g = o.g;
+    }
+    if((_ChannelMask >> 1 & 1) == 1)
+    {
+        c.b = o.b;
+    }
+    if((_ChannelMask >> 0 & 1) == 1)
+    {
+        c.a = o.a;
+    }
+    background[xy] = c;
+}
+
+
+
+[numthreads(8,8,1)]
+void Add(uint3 id: SV_DispatchThreadID)
+{
+    uint2 xy = id.xy;
+    ApplyOffset(xy);
+    if (!InRange(xy) || ShouldSkip(xy))return;
+    if(foreground[xy].a == 0) return;
+    background[xy] += GetMaskedColor(LinearTransformForegroundColor(foreground[xy]));
+}
+
+[numthreads(8,8,1)]
+void Subtract(uint3 id: SV_DispatchThreadID)
+{
+    uint2 xy = id.xy;
+    ApplyOffset(xy);
+    if (!InRange(xy) || ShouldSkip(xy))return;
+    if(foreground[xy].a == 0) return;
+    background[xy] -= GetMaskedColor(LinearTransformForegroundColor(foreground[xy]));
+}
+
+[numthreads(8,8,1)]
+void Multiply(uint3 id: SV_DispatchThreadID)
+{
+    uint2 xy = id.xy;
+    ApplyOffset(xy);
+    if (!InRange(xy) || ShouldSkip(xy))return;
+    if(foreground[xy].a == 0) return;
+    background[xy] *= GetMaskedColor(LinearTransformForegroundColor(foreground[xy]));
+}
+
+[numthreads(8,8,1)]
+void Divide(uint3 id: SV_DispatchThreadID)
+{
+    uint2 xy = id.xy;
+    ApplyOffset(xy);
+    if (!InRange(xy) || ShouldSkip(xy))return;
+    if(foreground[xy].a == 0) return;
+    background[xy] /= GetMaskedColor(LinearTransformForegroundColor(foreground[xy]));
+}
+
