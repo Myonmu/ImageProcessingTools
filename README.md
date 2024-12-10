@@ -1,6 +1,6 @@
 # ImageProcessingTools
 
-A simple image processing library for Unity, does very basic things (convolution/filtering and arithmetic operations). Built for Edit-time use but compatible for runtime. However, runtime performance is not guaranteed in general. The library is used in production.
+A simple image processing library for Unity, does very basic things (convolution/filtering and arithmetic operations). Built for Edit-time use but compatible for runtime. However, runtime performance is not guaranteed in general. The library has been used in production.
 
 # Installation
 
