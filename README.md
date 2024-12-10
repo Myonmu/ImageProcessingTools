@@ -16,7 +16,7 @@ There are plenty of variants for morphology operations, categorized by what we a
 
 The naming of the methods follows this convention:
 
-  Process{TypeOfResource}{UseComputeShader(CS)?}{MultiPass?}{Inplace? or NoAlloc?}
+```Process{TypeOfResource}{UseComputeShader(CS)?}{MultiPass?}{Inplace? or NoAlloc?}```
 
 For example, manipulating a RenderTexture with multiple passes in-place would be `ProcessRenderTextureMultiPassInPlace`.
 
@@ -60,7 +60,56 @@ ImageProcessing.ProcessTexture2DMultiPassInPlace(tex, CommonPipelines.Opening);
 ```
 
 ## Arithmetic Operations
-(WIP)
+
+Arithmetic operations take 2 textures, one *foreground* and the other *background*, overlapping foreground texture on the background texture. This *overlapping* process is affected by several factors:
+
+- **ArithmeticOp** : operation type. valid values are:
+   1. **Overwrite**: replace the background pixel by foreground pixel
+   2. **Add**: add foreground pixel value to background pixel value
+   3. **Subtract**: subtract foreground pixel value from background pixel value
+   4. **Multiply**: multiply foreground and background pixel values
+   5. **Divide**: divide background pixel value by foreground pixel value
+- **ChannelMask** : an R/G/B/A channel mask. Channels that are not part of the channel mask will be skipped.
+- **SkipCondition** : when foreground pixel matches certain conditions, the processing for this pixel is skipped. Valid values are:
+   1. **None** : does not skip
+   2. **BlackPixel** : skip when foreground has rgb = 0
+   3. **WhitePixel** : skip when foreground has rgb = 1
+   4. **TransparentPixel** : skip when foreground has a = 0
+- **linearTransform** : a tuple (`Vector2`) $(a,b)$, applies $a\*foregroundColor + b$ to the foreground pixel before all other checks and operations.
+
+Example Usage:
+
+Overlapping the visible parts of the foreground on the background:
+```csharp
+ImageProcessing.ExecuteArithmeticOperation(background, foreground, ArithmeticOp.Overwrite, Vector2Int.zero, ChannelMask.RGBA, SkipCondition.TransparentPixel, Vector2.left );
+```
+
+## Misc
+
+### Texture2D png extension
+
+A helper script that provides texture saving facilities to the `Texture2D` class:
+
+```csharp
+tex.WriteBackToPng();
+```
+
+This assumes the texture is already saved before.
+
+### Texture Edit Scope
+
+`TextureEditScope` ensures a texture is editable by changing importer settings:
+
+```csharp
+void EditTexture(Texture2D tex){
+using var scope = new TextureEditScope(tex);
+// you can now write to texture without worrying whether the texture has read/write enabled.
+}
+```
+
+When the scope is disposed, the importer settings are reverted. 
+
+
 
 
 
