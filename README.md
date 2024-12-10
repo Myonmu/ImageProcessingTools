@@ -31,7 +31,7 @@ ImageProcessing.ProcessTexture2DInPlace(tex, CommonKernels.GaussianBlur3);
 
 Optionally, you could pass 3 other parameters:
 - **KernelOperation** : what type of operation is performed, valid values are `Convolve`, `Dilate` and `Erode`. Default is `Convolve`. This parameter changes how shader calculates the result value, with `Convolve` summing `kernalValue * pixelValue`, `Dilate` propagates visible pixel colors, and `Erode` propagates empty pixels.
-- **kernel offset (int)** : offset applied to non-center kernel cells. Default value is 1. When sampling, the effective pixel for a kernel cell at $(x,y)$ relative to the center of the kernel, would be $(x*kernelOffset,y*kernelOffset)$.
+- **kernel offset (int)** : offset applied to non-center kernel cells. Default value is 1. When sampling, the effective pixel for a kernel cell at $(x,y)$ relative to the center of the kernel, would be $(x\*kernelOffset,y\*kernelOffset)$.
 - **repeat times (int)** : how many times should the operation be executed. Default value is 1. You could supply a larger value for effects like multi-pass blur.
 
 You could also use the overload that accepts an `ImageProcessingPass`, which packs these parameters into a single object. 
